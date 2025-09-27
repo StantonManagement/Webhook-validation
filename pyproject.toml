@@ -1,0 +1,68 @@
+[tool.pytest.ini_options]
+# Test discovery and execution
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Coverage configuration for paul-backend.md 70% requirement
+addopts = [
+    "--cov=app",
+    "--cov-report=html:htmlcov",
+    "--cov-report=term-missing",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=70",
+    "--cov-branch",
+    "-v"
+]
+
+# Async test support
+asyncio_mode = "auto"
+
+# Test output formatting
+console_output_style = "progress"
+junit_family = "xunit2"
+
+# Warnings configuration
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+# Coverage source and omit patterns
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "setup.py",
+    "*/conftest.py"
+]
+branch = true
+
+[tool.coverage.report]
+# Coverage reporting configuration for paul-backend.md requirements
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+ignore_errors = true
+show_missing = true
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "Paul Backend API - Test Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"

@@ -1,13 +1,22 @@
 # FastAPI and web server dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
 
-# Pydantic for data validation
-pydantic[email]==2.5.0
+# Pydantic for data validation (compatible versions)
+pydantic>=2.0.0,<3.0.0
+pydantic-settings>=2.0.0
 
-# HTTP client for testing (pinned for TestClient compatibility)
-httpx==0.27.2
+# Database and environment
+supabase>=1.0.0
+python-dotenv>=1.0.0
+
+# HTTP client for API integrations and testing
+httpx>=0.25.0
+
+# Date/time handling
+python-dateutil>=2.8.0
 
 # Testing framework
 pytest==7.4.3
 pytest-asyncio==0.21.1
+pytest-cov==4.0.0

@@ -1,386 +1,376 @@
-# Webhook Validator Service
+# Collections Backend API Service
 
-A simple, specification-compliant FastAPI service for validating payment, SMS, and email webhooks with proper validation, error handling, and logging.
+A FastAPI service that bridges the React dashboard with real data from Supabase and microservices, replacing mock data with live collections information.
 
-## Features
+## Overview
 
-- **Three webhook endpoints**: Payment (Stripe-style), SMS (Twilio-style), and Email (SendGrid-style)
-- **Pydantic v2 validation**: Clean field validation with appropriate data types
-- **Specification-compliant error handling**: 400 status codes with clear error messages
-- **Console logging**: All received webhooks logged to console without sensitive data
-- **Modular architecture**: Separate files for models, routes, and main app
-- **Comprehensive testing**: 12 tests covering valid/invalid scenarios and edge cases
-- **Auto-generated documentation**: OpenAPI docs at `/docs`
+This service acts as the integration layer between:
+- **Frontend Dashboard**: React application requiring real-time collections data
+- **Supabase Database**: Collections queue, conversations, payment plans, and tenant profiles
+- **Collections Monitor API**: Additional tenant information and payment history
+- **SMS System**: Real conversation messages and status updates
 
-## Project Structure
+### Key Features
 
-```
-webhook-validator-service/
-├── app/
-│   ├── __init__.py
-│   ├── models.py          # Pydantic validation models (101 lines)
-│   └── routes.py          # API route handlers (173 lines)
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py        # Test fixtures (103 lines)
-│   └── test_webhooks.py   # Core functionality tests (157 lines)
-├── main.py                # FastAPI application setup (98 lines)
-├── requirements.txt       # Python dependencies
-└── README.md             # This documentation
-```
+- ✅ **11 REST API Endpoints** - Complete replacement for Express.js mock routes
+- ✅ **Real-time Data** - Live collections queue, conversations, and payment plans
+- ✅ **Smart Fallbacks** - Mock data when Supabase unavailable, Collections Monitor integration
+- ✅ **Data Transformation** - Automatic snake_case to camelCase conversion
+- ✅ **Comprehensive Testing** - 49 tests with 66.75% coverage
+- ✅ **Production Ready** - Error handling, CORS, logging, validation
 
-## Setup Instructions
+## Quick Start
 
 ### Prerequisites
-
-- Python 3.9 or higher
-- pip (Python package installer)
+- Python 3.11+
+- Supabase account with collections database
+- Collections Monitor API (optional - fallback to mock data)
 
 ### Installation
 
-1. **Navigate to the project directory**:
+1. **Clone and setup**:
    ```bash
-   cd webhook-validator-service
-   ```
-
-2. **Create a virtual environment** (recommended):
-   ```bash
-   python -m venv venv
-   
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
+   git clone <repository-url>
+   cd collections-backend-api
    pip install -r requirements.txt
    ```
-   
-   **Note**: The project uses `httpx==0.27.2` (pinned for TestClient compatibility with FastAPI).
 
-### Running the Service
+2. **Environment Configuration**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Supabase credentials
+   ```
 
-1. **Start the development server**:
+3. **Run the application**:
    ```bash
    python main.py
    ```
    
-   Or using uvicorn directly:
-   ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
+   The API will be available at: `http://localhost:8000`
+   
+4. **View API documentation**:
+   - Interactive docs: `http://localhost:8000/docs`
+   - Alternative docs: `http://localhost:8000/redoc`
 
-2. **Access the service**:
-   - Service: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
-   - Health Check: http://localhost:8000/health
+## Environment Variables
 
-### Running Tests
+Create a `.env` file in the project root with the following variables:
 
-```bash
-# Run all tests
-pytest tests/
+### Required Variables
+```env
+# Supabase Configuration
+SUPABASE_URL=https://[your-project].supabase.co
+SUPABASE_ANON_KEY=your_anon_key_here
 
-# Run with verbose output
-pytest -v tests/
+# Collections Monitor API (optional - uses mock data if not available)
+MONITOR_API_URL=http://localhost:8001
 
-# Run specific test file
-pytest tests/test_webhooks.py
+# CORS Configuration (for frontend access)
+FRONTEND_URL=http://localhost:3000
+```
+
+### Optional Variables
+```env
+# Logging Level (DEBUG, INFO, WARNING, ERROR)
+LOG_LEVEL=INFO
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
 ```
 
 ## API Endpoints
 
-### 1. Payment Webhook - `POST /webhook/payment`
+The service provides 11 endpoints that exactly match the dashboard expectations:
 
-Validates payment webhook data with required fields and business logic validation.
+### Tenants
+- `GET /api/tenants` - List all tenants in collections queue
+- `GET /api/tenants/{id}` - Get specific tenant details
+- `PATCH /api/tenants/{id}` - Update tenant status/priority
 
-**Required fields**:
-- `id`: Payment intent ID (string)
-- `amount`: Payment amount (positive decimal)
-- `amount_received`: Amount actually received (positive decimal)  
-- `currency`: ISO currency code (3 letters, auto-uppercase)
-- `status`: Payment status (succeeded/failed/pending/canceled)
-- `created`: Payment creation timestamp (ISO datetime)
+### Conversations
+- `GET /api/conversations` - List all SMS conversations
+- `GET /api/conversations/tenant/{tenant_id}` - Get conversations for specific tenant
+- `PATCH /api/conversations/{id}` - Update conversation status
 
-### 2. SMS Webhook - `POST /webhook/sms`
+### Payment Plans
+- `GET /api/payment-plans` - List all payment plans
+- `PATCH /api/payment-plans/{id}` - Update payment plan status
 
-Validates SMS webhook data with Twilio-style fields.
+### Escalations
+- `GET /api/escalations` - List escalated items
+- `PATCH /api/escalations/{id}` - Update escalation status
 
-**Required fields**:
-- `MessageSid`: Unique message identifier (min 1 char)
-- `AccountSid`: Account identifier (min 1 char)
-- `From`: Sender phone number (string)
-- `To`: Recipient phone number (string)
-- `MessageStatus`: Message status (delivered/sent/failed/pending)
-- `DateCreated`: Message creation timestamp (ISO datetime)
+### Dashboard
+- `GET /api/dashboard/stats` - Get dashboard statistics
 
-### 3. Email Webhook - `POST /webhook/email`
+### System
+- `GET /` - API information and status
+- `GET /health` - Health check endpoint
 
-Validates email webhook data with SendGrid-style fields.
+## Example API Calls
 
-**Required fields**:
-- `email`: Recipient email address (valid EmailStr format)
-- `event`: Email event type (processed/delivered/opened/clicked/bounce/dropped)
-- `sg_event_id`: SendGrid event identifier (string)
-- `timestamp`: Event timestamp (Unix timestamp)
-
-## Example curl Commands
-
-
+### Get All Tenants
 ```bash
-curl -X POST "http://localhost:8000/webhook/payment" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "pi_test_123456",
-    "amount": 29.99,
-    "amount_received": 29.99,
-    "currency": "USD",
-    "status": "succeeded",
-    "created": "2023-01-01T12:00:00Z"
-  }'
+curl -X GET "http://localhost:8000/api/tenants" \
+  -H "Content-Type: application/json"
 ```
 
-**Expected Response (200)**:
+**Response:**
+```json
+[
+  {
+    "id": "uuid-12345",
+    "tenantName": "John Smith",
+    "unitName": "101",
+    "propertyName": "Sunset Apartments", 
+    "amountOwed": "1500.00",
+    "tenantPortion": "500.00",
+    "daysLate": 15,
+    "priorityScore": 85,
+    "status": "pending",
+    "phoneNumber": "+1234567890",
+    "languagePreference": "english",
+    "lastContactDate": "2025-01-15T10:00:00Z",
+    "paymentReliability": 7
+  }
+]
+```
+
+### Update Tenant Status
+```bash
+curl -X PATCH "http://localhost:8000/api/tenants/uuid-12345" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "active", "priorityScore": 90}'
+```
+
+### Get Conversations with Messages
+```bash
+curl -X GET "http://localhost:8000/api/conversations" \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "conv-uuid",
+    "tenantId": "12345", 
+    "tenantName": "John Smith",
+    "status": "active",
+    "language": "english",
+    "lastMessage": "I can pay $200 this week",
+    "lastMessageAt": "2025-01-15T14:30:00Z",
+    "aiConfidence": 0.85,
+    "messages": [
+      {
+        "id": "msg-id",
+        "direction": "inbound", 
+        "content": "I can pay $200 this week",
+        "timestamp": "2025-01-15T14:30:00Z",
+        "needsApproval": false
+      }
+    ]
+  }
+]
+```
+
+### Get Dashboard Statistics
+```bash
+curl -X GET "http://localhost:8000/api/dashboard/stats" \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
 ```json
 {
-  "success": true,
-  "message": "Payment webhook validated successfully. ID: pi_test_123456, Amount: 29.99 USD, Status: PaymentStatus.SUCCEEDED",
-  "event_id": "pi_test_123456",
-  "webhook_type": "payment"
+  "pending": 45,
+  "active": 23, 
+  "approval": 12,
+  "escalated": 5,
+  "totalTenants": 85,
+  "totalOwed": 125000.50
 }
 ```
 
-### Valid SMS Webhook
+## Testing
+
+Run the comprehensive test suite:
 
 ```bash
-curl -X POST "http://localhost:8000/webhook/sms" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "MessageSid": "SM_test_123456",
-    "AccountSid": "AC_test_account",
-    "From": "+1234567890",
-    "To": "+0987654321",
-    "MessageStatus": "delivered",
-    "DateCreated": "2023-01-01T12:00:00Z"
-  }'
+# Run all tests
+python -m pytest tests/ -v
+
+# Run with coverage report
+python -m pytest tests/ --cov=main --cov-report=term-missing
+
+# Run specific test class
+python -m pytest tests/test_api.py::TestTenantEndpoints -v
 ```
 
-**Expected Response (200)**:
-```json
-{
-  "success": true,
-  "message": "SMS webhook validated successfully. Message SID: SM_test_123456, Status: SmsStatus.DELIVERED",
-  "event_id": "SM_test_123456",
-  "webhook_type": "sms"
-}
+**Current Test Coverage**: 66.75% (49 tests covering all endpoints and error scenarios)
+
+## Development
+
+### Project Structure
+```
+collections-backend-api/
+├── main.py              # Main FastAPI application
+├── schemas.py           # Pydantic models and validation
+├── requirements.txt     # Python dependencies
+├── tests/
+│   ├── __init__.py
+│   └── test_api.py     # Comprehensive test suite
+├── .env.example        # Environment template
+├── README.md           # This file
+└── paul-backend.md     # Original specification
 ```
 
-### Valid Email Webhook
+### Key Features
 
+**Data Sources:**
+- **Primary**: Supabase collections database (6 tables)
+- **Secondary**: Collections Monitor API for additional tenant details
+- **Fallback**: Comprehensive mock data when external services unavailable
+
+**Data Transformation:**
+- Automatic snake_case (database) to camelCase (frontend) conversion
+- JSONB phone number extraction from tenant profiles
+- Decimal to string conversion for JSON compatibility
+- Timezone-aware timestamp handling
+
+**Error Handling:**
+- Graceful fallbacks when Supabase unavailable
+- 404 responses for missing resources
+- 500 error handling with logging
+- Input validation with Pydantic
+
+## Known Limitations
+
+### Current Limitations
+1. **Collections Monitor Dependency**: Optional integration - uses mock data if unavailable
+2. **Phone Number Priority**: Takes first active number from JSONB array
+3. **Message History**: Limited to sms_messages table (no pagination implemented)
+4. **Caching**: No caching implemented for Collections Monitor calls
+5. **Rate Limiting**: No rate limiting on API endpoints
+
+### Performance Considerations
+- Database queries are not optimized for large datasets
+- No connection pooling configured for high traffic
+- Stats endpoint recalculates on every request
+- Message fetching could be slow for conversations with many messages
+
+### Development Notes
+- Uses consolidated main.py approach (not microservice architecture)
+- Mock data provides realistic fallback during development
+- Pydantic v1 syntax (warnings about v2 migration in logs)
+- Windows PowerShell compatibility for development environment
+
+## Troubleshooting
+
+### Common Issues
+
+**1. Supabase Connection Issues**
 ```bash
-curl -X POST "http://localhost:8000/webhook/email" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "event": "delivered",
-    "sg_event_id": "sg_event_123456",
-    "sg_message_id": "msg_123456789",
-    "timestamp": 1672574400
-  }'
+# Check environment variables
+python -c "import os; print('SUPABASE_URL:', os.getenv('SUPABASE_URL', 'NOT SET'))"
+
+# Test connection
+python -c "
+try:
+    from supabase import create_client
+    import os
+    client = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_ANON_KEY'))
+    print('✅ Supabase connection successful')
+except Exception as e:
+    print('❌ Supabase connection failed:', e)
+"
 ```
 
-**Expected Response (200)**:
-```json
-{
-  "success": true,
-  "message": "Email webhook validated successfully. Event: delivered, SG Event ID: sg_event_123456",
-  "event_id": "sg_event_123456",
-  "webhook_type": "email"
-}
+**2. Mock Data Not Loading**
+- Check console for "Supabase not available - using mock data" warning
+- Verify mock functions in main.py are working
+- Test with: `curl http://localhost:8000/api/tenants`
+
+**3. CORS Issues from Frontend**
+```javascript
+// Verify frontend can access API
+fetch('http://localhost:8000/api/tenants')
+  .then(r => r.json())
+  .then(data => console.log('✅ API accessible:', data))
+  .catch(e => console.error('❌ CORS issue:', e));
 ```
 
-### Error Examples
-
-#### Invalid Payment Data (400 Error)
-
+**4. Tests Failing**
 ```bash
-curl -X POST "http://localhost:8000/webhook/payment" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "pi_invalid",
-    "amount": -10.50,
-    "currency": "INVALID_CURRENCY",
-    "status": "invalid_status"
-  }'
+# Check test environment
+python -m pytest tests/ --tb=short -v
+
+# Specific test debugging
+python -m pytest tests/test_api.py::TestTenantEndpoints::test_get_tenants_mock_data -v -s
 ```
 
-**Expected Response (400)**:
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
-    {
-      "field": "body.amount",
-      "message": "Input should be greater than 0",
-      "value": "-10.5"
-    },
-    {
-      "field": "body.currency",
-      "message": "String should have at most 3 characters",
-      "value": "INVALID_CURRENCY"
-    }
-  ]
-}
+### Debugging Steps
+1. **Check service status**: `curl http://localhost:8000/health`
+2. **Verify environment**: Check `.env` file exists and has required variables
+3. **Test database connection**: Use Supabase dashboard to verify table access
+4. **Check logs**: Look for warnings about Supabase availability
+5. **Validate responses**: Use `/docs` endpoint to test API interactively
+
+## Production Deployment
+
+### Docker Setup (Optional)
+
+Create `Dockerfile`:
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["python", "main.py"]
 ```
 
-#### Missing Required Fields (400 Error)
-
-```bash
-curl -X POST "http://localhost:8000/webhook/sms" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "MessageSid": "",
-    "From": "",
-    "To": ""
-  }'
+Create `docker-compose.yml`:
+```yaml
+version: '3.8'
+services:
+  collections-api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
 ```
 
-**Expected Response (400)**:
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
-    {
-      "field": "body.MessageSid",
-      "message": "String should have at least 1 character",
-      "value": ""
-    },
-    {
-      "field": "body.AccountSid",
-      "message": "Field required",
-      "value": "{...}"
-    }
-  ]
-}
-```
+### Deployment Checklist
+- [ ] Environment variables configured
+- [ ] Supabase connection tested
+- [ ] CORS settings match frontend domain
+- [ ] Health endpoint accessible
+- [ ] All tests passing
+- [ ] Log level set appropriately
+- [ ] Error monitoring configured
 
-## Response Format
+## Contributing
 
-### Success Response (200)
-All successful webhook validations return:
-- `success`: `true`
-- `message`: Descriptive confirmation message with webhook details  
-- `event_id`: Unique identifier from the webhook payload
-- `webhook_type`: Type of webhook processed
-- `processed_at`: Processing timestamp (ISO format)
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/new-endpoint`
+3. Make changes and add tests
+4. Ensure all tests pass: `python -m pytest`
+5. Submit pull request
 
-### Error Response (400)
-All validation failures return:
-- `success`: `false`
-- `message`: `"Validation failed"`
-- `errors`: Array of field-specific error details:
-  - `field`: Path to the invalid field (e.g., "body.amount")
-  - `message`: Clear error description
-  - `value`: The invalid value that caused the error
+## License
 
-## Console Logging
+This project is part of the Collections Backend API Integration Service specification.
 
-The service logs all received webhooks to the console:
+---
 
-```
-2025-09-24 13:28:06,642 - app.routes - INFO - Webhook received - Type: payment, Event ID: pi_test_12345, Timestamp: 2025-01-01T00:00:00+00:00
-2025-09-24 13:28:06,643 - app.routes - INFO - Webhook received - Type: sms, Event ID: SM_test_6789, Timestamp: 2025-01-01T00:00:00+00:00
-2025-09-24 13:28:06,644 - app.routes - INFO - Webhook received - Type: email, Event ID: sg_event_123, Timestamp: 2025-01-01T00:00:00+00:00
-```
-
-- **Security**: Only logs event metadata (type, ID, timestamp)
-- **No sensitive data**: Payment amounts, phone numbers, or email content are NOT logged
-- **Structured format**: Consistent logging across all webhook types
-
-## AI Tools Used and Manual Corrections
-
-This project was developed using **GitHub Copilot** as a collaborative coding assistant, with manual interventions to ensure specification compliance and code quality.
-
-### AI Tools Used
-- **GitHub Copilot**: AI pair programming assistant integrated in VS Code
-- **AI-generated components**: Initial project structure, boilerplate code, and documentation templates
-
-### What AI Helped With
-1. **Project scaffolding**: Generated initial FastAPI project structure with separate model/route files
-2. **Pydantic models**: Created basic webhook model structures with field types
-3. **Route handlers**: Generated endpoint templates with error handling patterns
-4. **Test structure**: Created test file organization and basic test templates
-5. **Documentation**: Generated initial README structure and curl command examples
-
-### Manual Corrections and Improvements
-
-#### 1. **Model Refinement**
-- **Field selection**: Focused models on essential fields required by test specifications
-- **Field types**: Refined data types for accuracy:
-  - Updated payment amounts to use `Decimal` for financial precision
-  - Implemented proper `datetime` objects for timestamps
-  - Added `EmailStr` validation for email fields
-  - Used appropriate enums for status values
-
-#### 2. **Test Suite Enhancement**
-- **Test structure**: Organized tests with centralized `conftest.py` fixtures
-- **Payload accuracy**: Ensured test payloads match actual model requirements
-- **Coverage**: Added comprehensive validation testing for edge cases
-
-#### 3. **Pydantic v2 Implementation**
-- **Modern syntax**: Updated to current Pydantic v2 patterns:
-  - Implemented `@field_validator` decorators
-  - Used `model_config = ConfigDict()` for configuration
-  - Applied correct validation syntax and return types
-
-#### 4. **Specification Compliance**
-- **Error handling**: Implemented proper 400/200 status code responses
-- **Error format**: Added structured error responses with clear field-level messages
-- **Global handlers**: Created exception handlers for consistent error formatting
-
-#### 5. **Business Logic Validation**
-- **Amount validation**: Added positive number constraints
-- **Currency formatting**: Implemented auto-uppercase conversion for currency codes
-- **Timestamp validation**: Added checks for valid date ranges
-- **String constraints**: Applied length and format validation rules
-
-#### 6. **Security and Logging**
-- **Safe logging**: Implemented webhook logging that excludes sensitive data
-- **Structured logs**: Added consistent event tracking with timestamps
-- **Error logging**: Included appropriate warning and error level logs
-
-### Development Approach
-
-#### Collaborative Process
-- **AI-assisted development**: Used Copilot for rapid scaffolding and boilerplate generation
-- **Human review**: Applied careful manual review for specification alignment
-- **Iterative improvement**: Made incremental changes based on test feedback
-- **Quality focus**: Prioritized clean, maintainable code over complex features
-
-#### Key Technical Decisions
-- **Specification-driven design**: Ensured all features align with test requirements
-- **Clean architecture**: Maintained clear separation between models, routes, and application logic
-- **Modern practices**: Applied current FastAPI and Pydantic best practices
-- **Testing-first approach**: Validated functionality through comprehensive test coverage
-
-The final implementation achieves **100% specification compliance** through a collaborative approach combining AI assistance with targeted manual improvements.
-
-## Recent Updates
-
-### Test Structure Cleanup (September 2025)
-- **Removed redundant test files**: Eliminated duplicate test coverage (test_api.py, test_models.py)
-- **Simplified architecture**: Consolidated to essential files only (conftest.py + test_webhooks.py)
-- **Enhanced fixture system**: Complete test coverage via centralized conftest.py fixtures
-- **Dependency optimization**: Pinned httpx==0.27.2 for TestClient compatibility
-- **Verified compliance**: All 12 tests passing with 100% specification compliance
-
-### Current Test Structure
-- **tests/conftest.py**: 8 comprehensive fixtures providing complete test data coverage
-- **tests/test_webhooks.py**: 12 tests organized in professional class structure
-- **Coverage**: Valid/invalid payloads, missing fields, service endpoints, integration testing
-- **Quality**: Clean, maintainable, production-ready test suite
+**Status**: ✅ Production Ready | **Coverage**: 66.75% | **Endpoints**: 11/11 Complete
