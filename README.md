@@ -359,13 +359,7 @@ services:
 - [ ] Log level set appropriately
 - [ ] Error monitoring configured
 
-## Contributing
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/new-endpoint`
-3. Make changes and add tests
-4. Ensure all tests pass: `python -m pytest`
-5. Submit pull request
 
 ## License
 
